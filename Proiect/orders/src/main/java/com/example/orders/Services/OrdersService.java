@@ -7,6 +7,7 @@ import com.example.orders.POJO.BookItem;
 import com.example.orders.POJO.Orders;
 import com.example.orders.POJO.RequestItem;
 import com.example.orders.Repository.ClientRepository;
+import com.example.orders.SOAP.SoapRequest;
 import net.minidev.json.JSONObject;
 import net.minidev.json.parser.JSONParser;
 import net.minidev.json.parser.ParseException;
@@ -31,7 +32,7 @@ public class OrdersService {
     }
 
     //Get cart - iau cosul de cumparaturi pe care il updatez
-    public Orders getActiveCart(String name){
+    private Orders getActiveCart(String name){
 
         clientRepository.setCollectionName(name);
         Orders activeOrder = clientRepository.findByStatus("initialized");
@@ -49,51 +50,67 @@ public class OrdersService {
 
         //rest template
         RestTemplate restTemplate = new RestTemplate();
-        String fooResourceUrl  = "http://localhost:8080/api/bookcollection/books/blockQuantity/" + item.getIsbn() + "?quantity=" + item.getQuantity();
-        ResponseEntity<String> response = restTemplate.getForEntity(fooResourceUrl, String.class);
-
         JSONParser parser = new JSONParser();
-        JSONObject json = (JSONObject) parser.parse(response.getBody());
 
         //jwt
         String[] chunks = token.replace("Bearer ", "").split("\\.");
-
         Base64.Decoder decoder = Base64.getDecoder();
-
-        String header = new String(decoder.decode(chunks[0]));
         String payload = new String(decoder.decode(chunks[1]));
-
         JSONObject jsonForPayload = (JSONObject) parser.parse(payload);
 
-        boolean condition = false;
-        clientRepository.setCollectionName(jsonForPayload.get("name").toString());
-        Orders order = getActiveCart(jsonForPayload.get("name").toString());
+        String fooResourceUrl  = "http://localhost:8080/api/bookcollection/books/blockQuantity/" + item.getIsbn() + "?quantity=" + item.getQuantity();
 
-        for(BookItem itm : order.getItem()){
-            if(itm.getIsbn().equals(item.getIsbn())){
-                itm.setQuantity(item.getQuantity() + itm.getQuantity());
-                condition = true;
-                break;
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(token.substring(7));
+        HttpEntity<String> request = new HttpEntity<>("", headers);
+
+        try {
+            ResponseEntity<String> response = restTemplate.postForEntity(fooResourceUrl, request, String.class);;
+            JSONObject json = (JSONObject) parser.parse(response.getBody());
+
+
+            boolean condition = false;
+            clientRepository.setCollectionName(jsonForPayload.get("sub").toString());
+            Orders order = getActiveCart(jsonForPayload.get("sub").toString());
+
+            for (BookItem itm : order.getItem()) {
+                if (itm.getIsbn().equals(item.getIsbn())) {
+                    itm.setQuantity(item.getQuantity() + itm.getQuantity());
+                    condition = true;
+                    break;
+                }
             }
+
+            BookItem newItem = new BookItem(json.get("id").toString(),
+                    json.get("titlu").toString(),
+                    Double.parseDouble(json.get("pret").toString()),
+                    item.getQuantity());
+
+
+            if (!condition) {
+                order.getItem().add(newItem);
+            }
+
+            clientRepository.save(order);
+            return order;
+        }
+        catch(Exception ex){
+            throw new OrdersABCException(ex.getMessage());
         }
 
-        BookItem newItem = new BookItem(json.get("id").toString(),
-                                        json.get("titlu").toString(),
-                                        Double.parseDouble(json.get("pret").toString()),
-                                        item.getQuantity());
-
-
-        if(!condition){
-            order.getItem().add(newItem);
-        }
-
-        clientRepository.save(order);
-        return order;
     }
 
     //Read all orders => GET
-    public List<Orders> getAllOrders(){
-        clientRepository.setCollectionName("default");
+    public List<Orders> getAllOrders(String token){
+
+        String tkn = SoapRequest.SoapTokenRequest(token);
+
+        if(tkn.equals("Expired") || tkn.equals("Invalid")){
+
+            throw new BadRequestException(tkn);
+        }
+        clientRepository.setCollectionName((tkn.split(" ")[0]).toString());
         return clientRepository.findAll();
     }
 
@@ -102,22 +119,18 @@ public class OrdersService {
 
         RestTemplate restTemplate = new RestTemplate();
         String fooResourceUrl  = "http://localhost:8080/api/bookcollection/books/releaseQuantity/" + item.getIsbn() + "?quantity=" + item.getQuantity();
-        ResponseEntity<String> response = restTemplate.getForEntity(fooResourceUrl, String.class);
-
 
         JSONParser parser = new JSONParser();
-        JSONObject json = (JSONObject) parser.parse(response.getBody());
 
         //jwt
         String[] chunks = token.replace("Bearer ", "").split("\\.");
         Base64.Decoder decoder = Base64.getDecoder();
-        String header = new String(decoder.decode(chunks[0]));
         String payload = new String(decoder.decode(chunks[1]));
 
         JSONObject jsonForPayload = (JSONObject) parser.parse(payload);
 
-        clientRepository.setCollectionName(jsonForPayload.get("name").toString());
-        Orders orderToDelete = getActiveCart(jsonForPayload.get("name").toString());
+        clientRepository.setCollectionName(jsonForPayload.get("sub").toString());
+        Orders orderToDelete = getActiveCart(jsonForPayload.get("sub").toString());
 
         boolean found = false;
 
@@ -125,8 +138,16 @@ public class OrdersService {
              throw new Error404Exception("Your order does not contain any items");
         }
 
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(token.substring(7));
+        HttpEntity<String> request = new HttpEntity<>("", headers);
+
         try{
-            if(response.equals("ok")) {
+            ResponseEntity<String> response = restTemplate.postForEntity(fooResourceUrl,request, String.class);
+            String respReq = response.getBody();
+
+            if(respReq.equals("ok")) {
                 for(BookItem itm : orderToDelete.getItem()){
                     if(itm.getIsbn().equals(item.getIsbn())){
                         found = true;
@@ -146,17 +167,17 @@ public class OrdersService {
                     }
                 }
             }
+
+            if(!found){
+                throw new Error404Exception("This object does not exist in this order");
+            }
+
+            clientRepository.save(orderToDelete);
+            return orderToDelete;
         }
         catch (Exception ex){
             throw new OrdersABCException(ex.getMessage());
         }
-
-        if(!found){
-            throw new Error404Exception("This object does not exist in this order");
-        }
-
-        clientRepository.save(orderToDelete);
-        return orderToDelete;
     }
 
     public Orders finalizeOrder(String token) throws ParseException {
@@ -164,21 +185,17 @@ public class OrdersService {
         RestTemplate restTemplate = new RestTemplate();
         String fooResourceUrl  = "http://localhost:8080/api/bookcollection/books/finalize";
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
         JSONParser parser = new JSONParser();
 
         //jwt
         String[] chunks = token.replace("Bearer ", "").split("\\.");
         Base64.Decoder decoder = Base64.getDecoder();
-        String header = new String(decoder.decode(chunks[0]));
         String payload = new String(decoder.decode(chunks[1]));
 
         JSONObject jsonForPayload = (JSONObject) parser.parse(payload);
 
-        clientRepository.setCollectionName(jsonForPayload.get("name").toString());
-        Orders orderToFinalize = getActiveCart(jsonForPayload.get("name").toString());
+        clientRepository.setCollectionName(jsonForPayload.get("sub").toString());
+        Orders orderToFinalize = getActiveCart(jsonForPayload.get("sub").toString());
 
         Map<String, Integer> booksFromOrder = new HashMap<>();
 
@@ -187,6 +204,9 @@ public class OrdersService {
 
         });
 
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(token.substring(7));
         HttpEntity<Map<String,Integer>> request = new HttpEntity<>(booksFromOrder, headers);
 
         try{
@@ -196,12 +216,14 @@ public class OrdersService {
                 orderToFinalize.setStatus("finalized");
                 clientRepository.save(orderToFinalize);
             }
+
+            return orderToFinalize;
+
         }
         catch(Exception ex){
             throw new OrdersABCException(ex.getMessage());
         }
 
-        return orderToFinalize;
     }
 
 }

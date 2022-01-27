@@ -33,9 +33,9 @@ public class AuthorController {
     }
 
     @PostMapping //Create
-    public ResponseEntity<?> addNewAuthor(@RequestBody Author auth){
+    public ResponseEntity<?> addNewAuthor(@RequestBody Author auth, @RequestHeader("Authorization") String token){
 
-        EntityModel<Author> entityModel = authorModelAssembler.toModel(authorService.addAuthor(auth));
+        EntityModel<Author> entityModel = authorModelAssembler.toModel(authorService.addAuthor(auth,token));
 
         System.out.println(entityModel.getContent().getId());
         return ResponseEntity
@@ -46,26 +46,26 @@ public class AuthorController {
 
     @GetMapping //Read
     public CollectionModel<?> getAuthors(@RequestParam("pages")Optional<Integer> pages, @RequestParam("items")Optional<Integer> items,
-                                         @RequestParam("name")Optional<String> name, @RequestParam("match")Optional<String> match){
+                                         @RequestParam("name")Optional<String> name, @RequestParam("match")Optional<String> match, @RequestHeader("Authorization") String token){
 
-        List<EntityModel<Author>> auths = authorService.getAllAuthors(pages.orElse(0), items.orElse(3), name.orElse(""), match.orElse("")).stream() //
-                .map(author -> authorModelAssembler.toModel(author,pages, items, name,match)) //
+        List<EntityModel<Author>> auths = authorService.getAllAuthors(pages.orElse(0), items.orElse(3), name.orElse(""), match.orElse(""), token).stream() //
+                .map(author -> authorModelAssembler.toModel(author,pages, items, name,match,token)) //
                 .collect(Collectors.toList());
 
-        return CollectionModel.of(auths, linkTo(methodOn(AuthorController.class).getAuthors(pages, items, name,match)).withSelfRel().expand());
+        return CollectionModel.of(auths, linkTo(methodOn(AuthorController.class).getAuthors(pages, items, name,match,token)).withSelfRel().expand());
     }
 
     @GetMapping("/{id}") //Read
-    public EntityModel<?> getAuthById(@PathVariable Integer id){
+    public EntityModel<?> getAuthById(@PathVariable Integer id, @RequestHeader("Authorization") String token){
 
-        Author auth = authorService.getAuthorById(id);
+        Author auth = authorService.getAuthorById(id,token);
         return authorModelAssembler.toModel(auth);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateAuthor(@RequestBody Author author, @PathVariable Integer id){
+    public ResponseEntity<?> updateAuthor(@RequestBody Author author, @PathVariable Integer id, @RequestHeader("Authorization") String token){
 
-        Author auth = authorService.updateAuth(author,id);
+        Author auth = authorService.updateAuth(author,id,token);
         EntityModel<Author> entityModel = authorModelAssembler.toModel(author);
 
         return ResponseEntity //
@@ -75,8 +75,8 @@ public class AuthorController {
     }
 
     @DeleteMapping("/{id}") //Delete
-    public ResponseEntity<?>  deleteAuthor(@PathVariable Integer id){
-        authorService.deleteAuth(id);
+    public ResponseEntity<?>  deleteAuthor(@PathVariable Integer id, @RequestHeader("Authorization") String token){
+        authorService.deleteAuth(id,token);
         return ResponseEntity.noContent().build();
     }
 

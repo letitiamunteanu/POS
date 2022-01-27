@@ -10,7 +10,5 @@ import java.util.List;
 public interface AuthorRepository extends JpaRepository<Author, Integer> {
 
     List<Author> findByNume(String name);
-
-
     List<Author> findByNumeContaining(String name);
 }

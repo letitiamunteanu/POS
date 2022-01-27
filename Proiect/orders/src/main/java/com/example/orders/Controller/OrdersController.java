@@ -24,9 +24,9 @@ public class OrdersController {
     }
 
     @GetMapping("/orders/getAllOrders")
-    public List<Orders> getAllOrdersController(){
+    public List<Orders> getAllOrdersController(@RequestHeader("Authorization") String token){
 
-        return ordersService.getAllOrders();
+        return ordersService.getAllOrders(token);
     }
 
     @PostMapping("/orders/addNewOrder")

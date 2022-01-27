@@ -18,16 +18,16 @@ public class BookModelAssembler implements RepresentationModelAssembler<Book, En
     public EntityModel<Book> toModel(Book book) {
 
         return EntityModel.of(book, //
-                linkTo(methodOn(BookController.class).getBookById(book.getId(), null)).withSelfRel().expand(),
-                linkTo(methodOn(BookController.class).getBooks(null, null,null,null)).withRel("books").expand());
+                linkTo(methodOn(BookController.class).getBookById(book.getId(), null, null)).withSelfRel().expand(),
+                linkTo(methodOn(BookController.class).getBooks(null, null,null,null,null)).withRel("books").expand());
     }
 
     public EntityModel<Book> toModel(Book book, Optional<Integer> pages, Optional<Integer> items,
-                                     Optional<String> genre, Optional<Integer> year) {
+                                     Optional<String> genre, Optional<Integer> year, String token) {
 
         return EntityModel.of(book, //
-                linkTo(methodOn(BookController.class).getBookById(book.getId(), null)).withSelfRel().expand(),
-                linkTo(methodOn(BookController.class).getBooks(pages, items, genre, year)).withRel("books").expand());
+                linkTo(methodOn(BookController.class).getBookById(book.getId(), null, token)).withSelfRel().expand(),
+                linkTo(methodOn(BookController.class).getBooks(pages, items, genre, year, token)).withRel("books").expand());
     }
 
 }

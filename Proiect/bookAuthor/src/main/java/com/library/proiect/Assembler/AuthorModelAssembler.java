@@ -18,14 +18,14 @@ public class AuthorModelAssembler implements RepresentationModelAssembler<Author
     public EntityModel<Author> toModel(Author author) {
 
         return EntityModel.of(author, //
-                linkTo(methodOn(AuthorController.class).getAuthById(author.getId())).withSelfRel(),
-                linkTo(methodOn(AuthorController.class).getAuthors(null,null, null,null)).withRel("authors").expand());
+                linkTo(methodOn(AuthorController.class).getAuthById(author.getId(), null)).withSelfRel(),
+                linkTo(methodOn(AuthorController.class).getAuthors(null,null, null,null,null)).withRel("authors").expand());
     }
 
-    public EntityModel<Author> toModel(Author author, Optional<Integer> pages, Optional<Integer> items, Optional<String> nume, Optional<String> match) {
+    public EntityModel<Author> toModel(Author author, Optional<Integer> pages, Optional<Integer> items, Optional<String> nume, Optional<String> match, String token) {
 
         return EntityModel.of(author, //
-                linkTo(methodOn(AuthorController.class).getAuthById(author.getId())).withSelfRel(),
-                linkTo(methodOn(AuthorController.class).getAuthors(pages, items,nume,match)).withRel("authors").expand());
+                linkTo(methodOn(AuthorController.class).getAuthById(author.getId(), null)).withSelfRel(),
+                linkTo(methodOn(AuthorController.class).getAuthors(pages, items,nume,match,token)).withRel("authors").expand());
     }
 }

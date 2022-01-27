@@ -37,9 +37,9 @@ public class BookController {
     }
 
     @PostMapping
-    public ResponseEntity<?> addNewBook(@RequestBody Book book){
+    public ResponseEntity<?> addNewBook(@RequestBody Book book, @RequestHeader("Authorization") String token){
 
-        EntityModel<Book> entityModel = bookModelAssembler.toModel(bookService.addBook(book));
+        EntityModel<Book> entityModel = bookModelAssembler.toModel(bookService.addBook(book, token));
 
         return ResponseEntity
                 .created(entityModel.getRequiredLink(IanaLinkRelations.SELF).toUri()) //
@@ -48,31 +48,31 @@ public class BookController {
 
     @GetMapping
     public CollectionModel<EntityModel<Book>> getBooks(@RequestParam("pages")Optional<Integer> pages, @RequestParam("items")Optional<Integer> items,
-                                                       @RequestParam("genre")Optional<String> genre, @RequestParam("year")Optional<Integer> year){
+                                                       @RequestParam("genre")Optional<String> genre, @RequestParam("year")Optional<Integer> year, @RequestHeader("Authorization") String token){
 
-        List<EntityModel<Book>> books = bookService.getAllBooks(pages.orElse(0), items.orElse(3), genre.orElse(""), year.orElse(0)).stream() //
-                .map(book -> bookModelAssembler.toModel(book,pages,items,genre,year)) //
+        List<EntityModel<Book>> books = bookService.getAllBooks(pages.orElse(0), items.orElse(3), genre.orElse(""), year.orElse(0),token).stream() //
+                .map(book -> bookModelAssembler.toModel(book,pages,items,genre,year,token)) //
                 .collect(Collectors.toList());
 
-        return CollectionModel.of(books, linkTo(methodOn(BookController.class).getBooks(pages, items,genre,year)).withSelfRel().expand());
+        return CollectionModel.of(books, linkTo(methodOn(BookController.class).getBooks(pages, items,genre,year,token)).withSelfRel().expand());
     }
 
 
     @GetMapping("/{id}")
-    public EntityModel<Book> getBookById(@PathVariable String id, @RequestParam("verbose")Optional<String> verbose){
-        Book b = bookService.getBookById(id,verbose.orElse(""));
+    public EntityModel<Book> getBookById(@PathVariable String id, @RequestParam("verbose")Optional<String> verbose, @RequestHeader("Authorization") String token){
+        Book b = bookService.getBookById(id,verbose.orElse(""), token);
         return bookModelAssembler.toModel(b);
     }
 
-    @GetMapping("/blockQuantity/{id}")
-    public EntityModel<Book> getBookByQuantity(@PathVariable String id, @RequestParam Integer quantity){
-        Book b = bookService.getBookByBlockedQuantity(id,quantity);
+    @PostMapping("/blockQuantity/{id}")
+    public EntityModel<Book> getBookByQuantity(@PathVariable String id, @RequestParam Integer quantity, @RequestHeader("Authorization") String token){
+        Book b = bookService.getBookByBlockedQuantity(id,quantity,token);
         return bookModelAssembler.toModel(b);
     }
 
-    @GetMapping("/releaseQuantity/{id}")
-    public ResponseEntity<?> getBookByReleasedQuantity(@PathVariable String id, @RequestParam Integer quantity){
-        String result = bookService.getBookByReleasedQuantity(id,quantity);
+    @PostMapping("/releaseQuantity/{id}")
+    public ResponseEntity<?> getBookByReleasedQuantity(@PathVariable String id, @RequestParam Integer quantity, @RequestHeader("Authorization") String token){
+        String result = bookService.getBookByReleasedQuantity(id,quantity,token);
 
         if(result.equals("ok")){
             return ResponseEntity.ok().body(result);
@@ -80,19 +80,15 @@ public class BookController {
         return null;
     }
 
-//    @GetMapping("/finalize")
-//    public ResponseEntity<?> FinalizeOrder(@RequestBody Map<String, Integer> booksToFinalize){
-//        return new ResponseEntity<>(bookService.finalizeOrder(booksToFinalize), HttpStatus.OK);
-//    }
     @PostMapping("/finalize")
-    public ResponseEntity<?> FinalizeOrder(@RequestBody Map<String,Integer> booksToFinalize){
-        return new ResponseEntity<>(bookService.finalizeOrder(booksToFinalize), HttpStatus.OK);
+    public ResponseEntity<?> FinalizeOrder(@RequestBody Map<String,Integer> booksToFinalize, @RequestHeader("Authorization") String token){
+        return new ResponseEntity<>(bookService.finalizeOrder(booksToFinalize, token), HttpStatus.OK);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> UpdateBook(@PathVariable String id,@RequestBody Book book){
+    public ResponseEntity<?> UpdateBook(@PathVariable String id,@RequestBody Book book, @RequestHeader("Authorization") String token){
 
-        Book b =  bookService.UpdateBook(id,book);
+        Book b =  bookService.UpdateBook(id,book,token);
         EntityModel<Book> entityModel = bookModelAssembler.toModel(b);
 
         return ResponseEntity //
@@ -102,9 +98,9 @@ public class BookController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> DeleteBook(@PathVariable String id){
+    public ResponseEntity<?> DeleteBook(@PathVariable String id, @RequestHeader("Authorization") String token){
 
-        bookService.deleteBook(id);
+        bookService.deleteBook(id,token);
         return ResponseEntity.noContent().build();
     }
 
